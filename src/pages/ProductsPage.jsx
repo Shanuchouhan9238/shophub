@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getProducts, getCategories } from "../services/api";
 import ProductList from "../components/ProductList";
-import SearchBar from "../components/SearchBar";
-import SortSelect from "../components/SortSelect";
 import FilterSidebar from "../components/FilterSidebar";
 import Pagination from "../components/Pagination";
 import Loader from "../components/Loader";
@@ -11,6 +9,14 @@ import ErrorMessage from "../components/ErrorMessage";
 import EmptyState from "../components/EmptyState";
 
 const LIMIT = 12;
+
+const SORT_OPTIONS = [
+  { value: "default", label: "Relevance" },
+  { value: "price-asc", label: "Price -- Low to High" },
+  { value: "price-desc", label: "Price -- High to Low" },
+  { value: "rating-desc", label: "Rating" },
+  { value: "discount-desc", label: "Discount" },
+];
 
 // Filters ki default value
 const DEFAULT_FILTERS = {
@@ -24,25 +30,25 @@ const DEFAULT_FILTERS = {
 };
 
 function ProductsPage() {
-  // Home page se category link par aane ke liye URL se category padhte hain
-  const [searchParams] = useSearchParams();
+  // Search (q), category aur sort URL se aate hain (navbar search / home page links)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get("q") || "";
+  const categoryParam = searchParams.get("category") || "";
+  const sortParam = searchParams.get("sort") || "default";
 
   const [allProducts, setAllProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({
-    ...DEFAULT_FILTERS,
-    category: searchParams.get("category") || "",
-  });
-  const [sort, setSort] = useState("default");
+  const [filters, setFilters] = useState({ ...DEFAULT_FILTERS, category: categoryParam });
+  const [sort, setSort] = useState(sortParam);
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Note: URL badalne par (navbar search / home link) App.jsx is page ko
+  // naye key ke saath mount karta hai, isliye filters apne aap reset ho jate hain
 
   // Categories ek baar load honge
   useEffect(() => {
@@ -52,7 +58,7 @@ function ProductsPage() {
   }, []);
 
   // Search ya category badle to API se saare matching products laate hain (limit 0 = sab)
-  // Baaki filters (price, rating, brand...) yahin browser mein lagte hain
+  // Baaki filters (price, rating, brand...) browser mein lagte hain
   useEffect(() => {
     let ignore = false;
 
@@ -80,7 +86,7 @@ function ProductsPage() {
     };
   }, [searchQuery, filters.category, reloadKey]);
 
-  // Loaded products se brand list nikalte hain (duplicate hata kar)
+  // Brand list loaded products se
   const brands = [...new Set(allProducts.map((p) => p.brand).filter(Boolean))].sort();
 
   // Client side filters
@@ -102,49 +108,58 @@ function ProductsPage() {
   } else if (sort === "rating-desc") {
     filtered = [...filtered].sort((a, b) => b.rating - a.rating);
   } else if (sort === "discount-desc") {
-    filtered = [...filtered].sort(
-      (a, b) => b.discountPercentage - a.discountPercentage
-    );
+    filtered = [...filtered].sort((a, b) => b.discountPercentage - a.discountPercentage);
   }
 
   // Pagination
   const total = filtered.length;
   const totalPages = Math.ceil(total / LIMIT);
   const products = filtered.slice((page - 1) * LIMIT, page * LIMIT);
+  const showingFrom = total === 0 ? 0 : (page - 1) * LIMIT + 1;
+  const showingTo = Math.min(page * LIMIT, total);
 
-  // Kitne filters lage hue hain (badge ke liye)
-  const activeFilterCount =
-    (filters.category ? 1 : 0) +
-    (filters.minPrice !== "" || filters.maxPrice !== "" ? 1 : 0) +
-    (filters.minRating > 0 ? 1 : 0) +
-    filters.brands.length +
-    (filters.minDiscount > 0 ? 1 : 0) +
-    (filters.inStock ? 1 : 0);
+  // Applied filter chips
+  const chips = [];
+  const activeCategory = categories.find((c) => c.slug === filters.category);
+  if (activeCategory) {
+    chips.push({ label: activeCategory.name, remove: () => handleFilterChange({ ...filters, category: "" }) });
+  }
+  if (filters.minPrice !== "" || filters.maxPrice !== "") {
+    const label = `$${filters.minPrice || 0} - ${filters.maxPrice ? "$" + filters.maxPrice : "$10000+"}`;
+    chips.push({ label, remove: () => handleFilterChange({ ...filters, minPrice: "", maxPrice: "" }) });
+  }
+  if (filters.minRating > 0) {
+    chips.push({ label: `${filters.minRating}★ & above`, remove: () => handleFilterChange({ ...filters, minRating: 0 }) });
+  }
+  filters.brands.forEach((brand) => {
+    chips.push({
+      label: brand,
+      remove: () => handleFilterChange({ ...filters, brands: filters.brands.filter((b) => b !== brand) }),
+    });
+  });
+  if (filters.minDiscount > 0) {
+    chips.push({ label: `${filters.minDiscount}% or more`, remove: () => handleFilterChange({ ...filters, minDiscount: 0 }) });
+  }
+  if (filters.inStock) {
+    chips.push({ label: "In Stock", remove: () => handleFilterChange({ ...filters, inStock: false }) });
+  }
 
-  const handleSearch = () => {
-    setSearchQuery(searchInput.trim());
-    setFilters({ ...filters, category: "", brands: [] });
-    setPage(1);
-  };
-
-  const handleClear = () => {
-    setSearchInput("");
-    setSearchQuery("");
-    setPage(1);
-  };
-
-  const handleFilterChange = (newFilters) => {
-    // Category badle to brand list bhi badlegi, isliye brands reset
+  function handleFilterChange(newFilters) {
+    // Category badle to brand selection reset
     if (newFilters.category !== filters.category) {
       newFilters = { ...newFilters, brands: [] };
     }
     setFilters(newFilters);
     setPage(1);
-  };
+  }
 
   const handleClearFilters = () => {
     setFilters(DEFAULT_FILTERS);
     setPage(1);
+    // URL se bhi category hata do, search rehne do
+    const next = new URLSearchParams(searchParams);
+    next.delete("category");
+    setSearchParams(next);
   };
 
   const handleSortChange = (value) => {
@@ -157,12 +172,21 @@ function ProductsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const activeCategory = categories.find((c) => c.slug === filters.category);
-
   return (
     <div className="container page">
+      <div className="breadcrumb">
+        <Link to="/">Home</Link>
+        <span>›</span>
+        <span>{activeCategory ? activeCategory.name : "All Products"}</span>
+        {searchQuery && (
+          <>
+            <span>›</span>
+            <span>"{searchQuery}"</span>
+          </>
+        )}
+      </div>
+
       <div className="products-layout">
-        {/* Left side filters */}
         <FilterSidebar
           categories={categories}
           brands={brands}
@@ -171,69 +195,92 @@ function ProductsPage() {
           onClear={handleClearFilters}
           isOpen={showFilters}
           onClose={() => setShowFilters(false)}
+          activeCount={chips.length}
         />
         {showFilters && (
           <div className="filter-overlay" onClick={() => setShowFilters(false)} />
         )}
 
-        {/* Right side products */}
         <div className="products-main">
-          <h1 className="page-title">
-            {activeCategory ? activeCategory.name : "All Products"}
-          </h1>
+          {/* Top bar: result count + sort */}
+          <div className="results-bar">
+            <div className="results-text">
+              <h1>
+                {searchQuery
+                  ? `Results for "${searchQuery}"`
+                  : activeCategory
+                    ? activeCategory.name
+                    : "All Products"}
+              </h1>
+              {!loading && !error && (
+                <span>
+                  Showing {showingFrom} – {showingTo} of {total} results
+                </span>
+              )}
+            </div>
 
-          <div className="toolbar">
-            <SearchBar
-              value={searchInput}
-              onChange={setSearchInput}
-              onSearch={handleSearch}
-              onClear={handleClear}
-            />
-            <SortSelect value={sort} onChange={handleSortChange} />
-            <button
-              className="secondary filter-toggle"
-              onClick={() => setShowFilters(true)}
-            >
-              Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
-            </button>
+            <div className="sort-bar">
+              <span className="sort-label">Sort By</span>
+              {SORT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={`sort-option ${sort === opt.value ? "active" : ""}`}
+                  onClick={() => handleSortChange(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <select
+                className="sort-select"
+                value={sort}
+                onChange={(e) => handleSortChange(e.target.value)}
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <button className="filter-toggle" onClick={() => setShowFilters(true)}>
+                Filters {chips.length > 0 && `(${chips.length})`}
+              </button>
+            </div>
           </div>
 
-          {!loading && !error && (
-            <p className="result-count">
-              {total} products found
-              {activeFilterCount > 0 && ` · ${activeFilterCount} filters applied`}
-            </p>
+          {/* Applied filter chips */}
+          {chips.length > 0 && (
+            <div className="chips">
+              {chips.map((chip) => (
+                <button key={chip.label} className="chip" onClick={chip.remove}>
+                  {chip.label} <span>✕</span>
+                </button>
+              ))}
+              <button className="chip-clear" onClick={handleClearFilters}>
+                Clear all
+              </button>
+            </div>
           )}
 
           {loading && <Loader />}
 
           {!loading && error && (
-            <ErrorMessage
-              message={error}
-              onRetry={() => setReloadKey((k) => k + 1)}
-            />
+            <ErrorMessage message={error} onRetry={() => setReloadKey((k) => k + 1)} />
           )}
 
           {!loading && !error && products.length === 0 && (
             <EmptyState
               message={
                 searchQuery
-                  ? `No results for "${searchQuery}". Try a different keyword or clear filters.`
-                  : "No products match the selected filters."
+                  ? `We couldn't find anything for "${searchQuery}". Try a different keyword or remove some filters.`
+                  : "No products match the selected filters. Try removing some filters."
               }
             />
           )}
 
-          {!loading && !error && products.length > 0 && (
-            <ProductList products={products} />
-          )}
+          {!loading && !error && products.length > 0 && <ProductList products={products} />}
 
           {!loading && !error && totalPages > 1 && (
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
+            <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
           )}
         </div>
       </div>

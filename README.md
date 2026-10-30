@@ -1,17 +1,19 @@
 # ShopHub - E-commerce Website
 
-A simple e-commerce website built with React and Vite. Products are loaded from the free [DummyJSON](https://dummyjson.com) API.
+A Flipkart style e-commerce website built with React and Vite. Products are loaded from the free [DummyJSON](https://dummyjson.com) API.
 
 ## Features
 
-- **Landing Page** - Hero banner, feature highlights, shop by category and top rated products
-- **Products Page** - Product listing with search, sorting, pagination and a Flipkart style left side filter panel
-  - Filters: Category, Price range, Customer rating, Brand (multi select), Discount and In stock
-  - Sort by price, rating or discount
+- **Header** - Blue header with logo, search bar (search for products, brands) and cart count
+- **Landing Page** - Category strip with images, auto sliding banner, Best Deals and Top Rated rows
+- **Products Page** - Flipkart style layout with left side filter panel, sort bar, applied filter chips and pagination
+  - Filters: Category, Price (slider + min/max), Brand (with search, multi select), Customer Ratings, Discount and Availability
+  - Sort by Relevance, Price, Rating or Discount
+  - Product cards show rating badge, price, original price, % off and free delivery
   - On mobile the filter panel opens as a slide-in drawer
-- **Product Details Page** - Image gallery, price, discount, stock, description, reviews, quantity, Add to Cart and Buy Now
-- **Cart Page** - Update quantity, remove items, clear cart and order summary
-- **Checkout Page** - Shipping details form with validation and payment method selection
+- **Product Details Page** - Image gallery with thumbnails, special price, offers, delivery info, highlights, specifications table, ratings & reviews, Add to Cart and Buy Now
+- **Cart Page** - Update quantity, remove items and Price Details box (price, discount, delivery, total savings)
+- **Checkout Page** - Step wise checkout (Delivery Address, Order Summary, Payment Options) with validation
 - **Thank You Page** - Order confirmation with order ID, items and delivery address
 - Cart is saved in localStorage, so it stays after page refresh
 - Loading, error and empty states
@@ -81,12 +83,11 @@ shophub/
 │   │   ├── FilterSidebar.jsx    # left side filters (category, price, rating, brand...)
 │   │   ├── Footer.jsx
 │   │   ├── Loader.jsx           # loading spinner
-│   │   ├── Navbar.jsx           # header with cart count
+│   │   ├── Logo.jsx             # ShopHub logo
+│   │   ├── Navbar.jsx           # blue header with search bar and cart count
 │   │   ├── Pagination.jsx
 │   │   ├── ProductCard.jsx      # single product card
-│   │   ├── ProductList.jsx      # product grid
-│   │   ├── SearchBar.jsx
-│   │   └── SortSelect.jsx       # sort dropdown
+│   │   └── ProductList.jsx      # product grid
 │   ├── context/
 │   │   ├── CartContext.js       # cart context
 │   │   └── CartProvider.jsx     # cart state (add, remove, update, clear)
@@ -110,8 +111,8 @@ shophub/
 
 ## User Flow
 
-1. Open the landing page and click **Shop Now**
-2. Search, apply filters from the left panel or sort products on the products page
+1. Open the landing page, pick a category or click a banner
+2. Search from the header, apply filters from the left panel or sort products
 3. Click a product to open its details page
 4. Choose quantity and click **Add to Cart** or **Buy Now**
 5. Review items in the cart and click **Proceed to Checkout**

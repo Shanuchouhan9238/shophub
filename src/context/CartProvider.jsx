@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { CartContext } from "./CartContext";
 
-
 export function CartProvider({ children }) {
   // Page refresh ke baad bhi cart bacha rahe, isliye localStorage se shuru karte hain
   const [cartItems, setCartItems] = useState(() => {
@@ -30,7 +29,9 @@ export function CartProvider({ children }) {
         {
           id: product.id,
           title: product.title,
+          brand: product.brand,
           price: product.price,
+          discountPercentage: product.discountPercentage,
           thumbnail: product.thumbnail,
           qty: qty,
         },

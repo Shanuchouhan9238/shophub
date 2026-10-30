@@ -1,4 +1,28 @@
-// Flipkart / Meesho jaisa left side filter panel
+import { useState } from "react";
+
+// Price dropdown ke options
+const PRICE_OPTIONS = [0, 50, 100, 200, 500, 1000, 5000, 10000];
+
+// Ek section jo open/close ho sakta hai
+function FilterSection({ title, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="filter-group">
+      <button
+        type="button"
+        className="filter-group-head"
+        onClick={() => setOpen(!open)}
+      >
+        <span>{title}</span>
+        <span className={`chevron ${open ? "up" : ""}`}>⌄</span>
+      </button>
+      {open && <div className="filter-group-body">{children}</div>}
+    </div>
+  );
+}
+
+// Flipkart jaisa left side filter panel
 function FilterSidebar({
   categories,
   brands,
@@ -7,39 +31,42 @@ function FilterSidebar({
   onClear,
   isOpen,
   onClose,
+  activeCount,
 }) {
-  // Ek filter ki value badalne ke liye
+  const [brandSearch, setBrandSearch] = useState("");
+
   const update = (name, value) => {
     onChange({ ...filters, [name]: value });
   };
 
-  // Brand checkbox toggle
   const toggleBrand = (brand) => {
     if (filters.brands.includes(brand)) {
-      update(
-        "brands",
-        filters.brands.filter((b) => b !== brand)
-      );
+      update("brands", filters.brands.filter((b) => b !== brand));
     } else {
       update("brands", [...filters.brands, brand]);
     }
   };
 
+  const visibleBrands = brands.filter((b) =>
+    b.toLowerCase().includes(brandSearch.toLowerCase())
+  );
+
   return (
     <aside className={`filter-sidebar ${isOpen ? "open" : ""}`}>
       <div className="filter-head">
         <h2>Filters</h2>
-        <button className="link-btn" onClick={onClear}>
-          Clear All
-        </button>
-        <button className="filter-close" onClick={onClose}>
+        {activeCount > 0 && (
+          <button type="button" className="clear-all" onClick={onClear}>
+            Clear All
+          </button>
+        )}
+        <button type="button" className="filter-close" onClick={onClose} aria-label="Close">
           ✕
         </button>
       </div>
 
       {/* Category */}
-      <div className="filter-group">
-        <h3>Category</h3>
+      <FilterSection title="Categories">
         <label className="filter-option">
           <input
             type="radio"
@@ -47,149 +74,139 @@ function FilterSidebar({
             checked={filters.category === ""}
             onChange={() => update("category", "")}
           />
-          All Categories
+          <span>All Categories</span>
         </label>
-        {categories.map((cat) => (
-          <label className="filter-option" key={cat.slug}>
-            <input
-              type="radio"
-              name="category"
-              checked={filters.category === cat.slug}
-              onChange={() => update("category", cat.slug)}
-            />
-            {cat.name}
-          </label>
-        ))}
-      </div>
+        <div className="filter-scroll">
+          {categories.map((cat) => (
+            <label className="filter-option" key={cat.slug}>
+              <input
+                type="radio"
+                name="category"
+                checked={filters.category === cat.slug}
+                onChange={() => update("category", cat.slug)}
+              />
+              <span>{cat.name}</span>
+            </label>
+          ))}
+        </div>
+      </FilterSection>
 
       {/* Price */}
-      <div className="filter-group">
-        <h3>Price</h3>
-        <div className="price-inputs">
-          <input
-            type="number"
-            min="0"
-            placeholder="Min"
+      <FilterSection title="Price">
+        <input
+          type="range"
+          className="price-slider"
+          min="0"
+          max="10000"
+          step="50"
+          value={filters.maxPrice === "" ? 10000 : filters.maxPrice}
+          onChange={(e) =>
+            update("maxPrice", e.target.value === "10000" ? "" : e.target.value)
+          }
+        />
+        <div className="price-selects">
+          <select
             value={filters.minPrice}
             onChange={(e) => update("minPrice", e.target.value)}
-          />
+          >
+            <option value="">Min</option>
+            {PRICE_OPTIONS.map((p) => (
+              <option key={p} value={p}>
+                ${p}
+              </option>
+            ))}
+          </select>
           <span>to</span>
-          <input
-            type="number"
-            min="0"
-            placeholder="Max"
+          <select
             value={filters.maxPrice}
             onChange={(e) => update("maxPrice", e.target.value)}
-          />
+          >
+            {PRICE_OPTIONS.filter((p) => p > 0).map((p) => (
+              <option key={p} value={p}>
+                ${p}
+              </option>
+            ))}
+            <option value="">$10000+</option>
+          </select>
         </div>
-        <div className="price-quick">
-          <button
-            type="button"
-            className={filters.minPrice === "" && filters.maxPrice === "50" ? "active" : ""}
-            onClick={() => onChange({ ...filters, minPrice: "", maxPrice: "50" })}
-          >
-            Under $50
-          </button>
-          <button
-            type="button"
-            className={filters.minPrice === "50" && filters.maxPrice === "200" ? "active" : ""}
-            onClick={() => onChange({ ...filters, minPrice: "50", maxPrice: "200" })}
-          >
-            $50 - $200
-          </button>
-          <button
-            type="button"
-            className={filters.minPrice === "200" && filters.maxPrice === "1000" ? "active" : ""}
-            onClick={() => onChange({ ...filters, minPrice: "200", maxPrice: "1000" })}
-          >
-            $200 - $1000
-          </button>
-          <button
-            type="button"
-            className={filters.minPrice === "1000" && filters.maxPrice === "" ? "active" : ""}
-            onClick={() => onChange({ ...filters, minPrice: "1000", maxPrice: "" })}
-          >
-            Above $1000
-          </button>
-        </div>
-      </div>
-
-      {/* Rating */}
-      <div className="filter-group">
-        <h3>Customer Rating</h3>
-        {[4, 3, 2, 1].map((star) => (
-          <label className="filter-option" key={star}>
-            <input
-              type="radio"
-              name="rating"
-              checked={filters.minRating === star}
-              onChange={() => update("minRating", star)}
-            />
-            <span className="product-rating">★ {star}</span>&nbsp;& above
-          </label>
-        ))}
-        <label className="filter-option">
-          <input
-            type="radio"
-            name="rating"
-            checked={filters.minRating === 0}
-            onChange={() => update("minRating", 0)}
-          />
-          Any rating
-        </label>
-      </div>
+      </FilterSection>
 
       {/* Brand */}
       {brands.length > 0 && (
-        <div className="filter-group">
-          <h3>Brand</h3>
+        <FilterSection title="Brand">
+          <input
+            type="text"
+            className="brand-search"
+            placeholder="Search Brand"
+            value={brandSearch}
+            onChange={(e) => setBrandSearch(e.target.value)}
+          />
           <div className="filter-scroll">
-            {brands.map((brand) => (
+            {visibleBrands.map((brand) => (
               <label className="filter-option" key={brand}>
                 <input
                   type="checkbox"
                   checked={filters.brands.includes(brand)}
                   onChange={() => toggleBrand(brand)}
                 />
-                {brand}
+                <span>{brand}</span>
               </label>
             ))}
+            {visibleBrands.length === 0 && (
+              <p className="filter-empty">No brand found</p>
+            )}
           </div>
-        </div>
+        </FilterSection>
       )}
 
-      {/* Discount */}
-      <div className="filter-group">
-        <h3>Discount</h3>
-        {[0, 5, 10, 15].map((d) => (
-          <label className="filter-option" key={d}>
+      {/* Rating */}
+      <FilterSection title="Customer Ratings">
+        {[4, 3, 2, 1].map((star) => (
+          <label className="filter-option" key={star}>
             <input
-              type="radio"
-              name="discount"
-              checked={filters.minDiscount === d}
-              onChange={() => update("minDiscount", d)}
+              type="checkbox"
+              checked={filters.minRating === star}
+              onChange={() => update("minRating", filters.minRating === star ? 0 : star)}
             />
-            {d === 0 ? "Any discount" : `${d}% or more`}
+            <span>
+              {star}
+              <span className="star-small">★</span> &amp; above
+            </span>
           </label>
         ))}
-      </div>
+      </FilterSection>
+
+      {/* Discount */}
+      <FilterSection title="Discount">
+        {[5, 10, 15, 20].map((d) => (
+          <label className="filter-option" key={d}>
+            <input
+              type="checkbox"
+              checked={filters.minDiscount === d}
+              onChange={() => update("minDiscount", filters.minDiscount === d ? 0 : d)}
+            />
+            <span>{d}% or more</span>
+          </label>
+        ))}
+      </FilterSection>
 
       {/* Availability */}
-      <div className="filter-group">
-        <h3>Availability</h3>
+      <FilterSection title="Availability" defaultOpen={false}>
         <label className="filter-option">
           <input
             type="checkbox"
             checked={filters.inStock}
             onChange={(e) => update("inStock", e.target.checked)}
           />
-          In stock only
+          <span>Exclude Out of Stock</span>
         </label>
-      </div>
+      </FilterSection>
 
-      <button className="full-btn apply-btn" onClick={onClose}>
-        Show Results
-      </button>
+      <div className="filter-footer">
+        <button type="button" className="btn-orange full-btn" onClick={onClose}>
+          Apply Filters
+        </button>
+      </div>
     </aside>
   );
 }
